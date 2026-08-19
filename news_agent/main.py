@@ -21,7 +21,8 @@ def _alert(subject: str, message: str) -> None:
     """Tells Kate something's wrong instead of sending a fake/broken briefing."""
     print(f"ALERT: {subject} -- {message}")
     if os.environ.get("EMAIL_FROM") and os.environ.get("EMAIL_APP_PASSWORD"):
-        send_email(f"<p>{message}</p>", subject=f"News Agent Alert: {subject}")
+        html_message = f"<p>{message.replace(chr(10), '<br>')}</p>"
+        send_email(html_message, subject=f"News Agent Alert: {subject}")
 
 
 if __name__ == "__main__":
