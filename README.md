@@ -1,4 +1,4 @@
-# Your first AI agent: a personalized news briefing
+# AI agent: a personalized news briefing
 
 ## What this is
 
