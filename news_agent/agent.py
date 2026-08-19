@@ -49,6 +49,10 @@ You may be given a list of stories already covered in recent days.
 Do not repeat one of those unless there's a genuine new development
 -- if so, make the summary explicitly about what changed (e.g. "Update:
 ...") rather than restating what was already reported.
+
+If a search_news call returns an error, don't retry it endlessly --
+try a different query or proceed to finalize_report with whatever
+good results you already have.
 """
 
 TOOLS = [
@@ -161,7 +165,13 @@ def run_agent(client: anthropic.Anthropic, recent_history: list[dict] | None = N
         tool_results = []
         for call in tool_calls:
             if call.name == "search_news":
-                result = search_news(**call.input)
+                try:
+                    result = search_news(**call.input)
+                except Exception as e:
+                    # e.g. NewsAPI rate limit or network failure -- tell the
+                    # model so it can proceed with whatever it already has,
+                    # rather than crashing the whole run over one bad query.
+                    result = {"error": f"search_news failed: {e}"}
             else:
                 result = {"error": f"unknown tool {call.name}"}
 

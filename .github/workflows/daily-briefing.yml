@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   send-briefing:
@@ -39,3 +40,13 @@ jobs:
           git add history.json
           git diff --staged --quiet || git commit -m "Update sent-article history"
           git push
+
+      - name: Pause the daily schedule after a failed run
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Run failed -- disabling this workflow's schedule so it doesn't keep failing daily."
+          echo "Check the logs above for why, fix it (e.g. top up Anthropic credits), then re-enable with:"
+          echo "  gh workflow enable daily-briefing.yml"
+          gh workflow disable daily-briefing.yml

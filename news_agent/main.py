@@ -25,18 +25,27 @@ if __name__ == "__main__":
         )
 
     client = anthropic.Anthropic(api_key=api_key)
-    report = run_agent(client, recent_history=history.recent_articles())
+    try:
+        report = run_agent(client, recent_history=history.recent_articles())
+    except anthropic.APIError as e:
+        raise SystemExit(
+            f"Anthropic API call failed: {e}\n"
+            "If this is a low-balance or rate-limit error, top up at "
+            "https://console.anthropic.com and re-run."
+        )
 
-    if report.get("error"):
-        print(f"Agent didn't finish cleanly: {report['error']}")
+    if report.get("error") or not report.get("sections"):
+        raise SystemExit(
+            f"Agent didn't produce a usable report: {report.get('error', 'no sections returned')}\n"
+            "Not sending an empty/broken email."
+        )
 
     html = render_html(report)
     n_articles = sum(len(s["articles"]) for s in report.get("sections", []))
     print(f"Report ready: {len(report.get('sections', []))} sections, {n_articles} articles.")
 
-    if report.get("sections"):
-        all_articles = [a for s in report["sections"] for a in s["articles"]]
-        history.record_sent(all_articles)
+    all_articles = [a for s in report["sections"] for a in s["articles"]]
+    history.record_sent(all_articles)
 
     if os.environ.get("EMAIL_FROM") and os.environ.get("EMAIL_APP_PASSWORD"):
         send_email(html)
