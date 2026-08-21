@@ -7,6 +7,8 @@ without burning API calls or needing a key yet.
 """
 
 import os
+import time
+
 import requests
 
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
@@ -57,20 +59,28 @@ def search_news(query: str, max_results: int = 5) -> list[dict]:
             results = _MOCK_ARTICLES["default"]
         return results[:max_results]
 
-    # Real NewsAPI call
-    resp = requests.get(
-        "https://newsapi.org/v2/everything",
-        params={
-            "q": query,
-            "sortBy": "publishedAt",
-            "language": "en",
-            "pageSize": max_results,
-            "apiKey": NEWS_API_KEY,
-        },
-        timeout=10,
-    )
-    resp.raise_for_status()
-    articles = resp.json().get("articles", [])
+    # Real NewsAPI call. NewsAPI occasionally returns a 200 with an empty
+    # "articles" list even though totalResults is nonzero -- a transient
+    # glitch on their end, not an honest zero-results answer. Retry a
+    # couple times in that specific case before accepting it.
+    for attempt in range(3):
+        resp = requests.get(
+            "https://newsapi.org/v2/everything",
+            params={
+                "q": query,
+                "sortBy": "publishedAt",
+                "language": "en",
+                "pageSize": max_results,
+                "apiKey": NEWS_API_KEY,
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        articles = data.get("articles", [])
+        if articles or data.get("totalResults", 0) == 0 or attempt == 2:
+            break
+        time.sleep(1.5)
     return [
         {
             "title": a["title"],
